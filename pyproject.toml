@@ -9,16 +9,15 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 numpy = "^1.26.4"
+polars = "^0.20.15"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
-Sphinx = "^7.2.6"
 ruff = "^0.3.2"
 mkdocstrings = "^0.24.1"
 mkdocstrings-python = "^1.8.0"
 mkdocs-material = "^9.5.13"
 snakemake = "^8.6.0"
-polars = "^0.20.15"
 tskit = "^0.5.6"
 mkdocs = "^1.5.3"
 black = "^24.2.0"

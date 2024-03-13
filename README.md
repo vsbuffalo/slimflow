@@ -1,5 +1,4 @@
 [![Python application](https://github.com/vsbuffalo/slimflow/actions/workflows/python-app.yml/badge.svg)](https://github.com/vsbuffalo/slimflow/actions/workflows/python-app.yml) [![docs](https://github.com/vsbuffalo/slimflow/actions/workflows/docs.yml/badge.svg)](https://github.com/vsbuffalo/slimflow/actions/workflows/docs.yml)
-
 # SlimFlow — A lightweight framework for running SLiM simulations with Snakemake
 
 SlimFlow is a small Python module that makes running and processing [SLiM
