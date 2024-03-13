@@ -1,0 +1,66 @@
+// Run a simple simulation of BGS in a region.
+//
+// # Expected command line arguments
+// - name 
+// - treeseq_file
+// - log_file
+// - N
+// - mu
+// - sh
+// - rbp
+
+initialize() {
+  defineConstant("region_length", 100000);
+  initializeTreeSeq();
+  defineConstant("seed", getSeed());
+  initializeMutationRate(mu);
+
+  // We fix h = 0.5 and calculate the proper homozygous selection
+  // coefficient.
+  defineConstant("h", 0.5);
+  defineConstant("s", sh / h);
+
+  initializeMutationType("m1", h, "f", -s);
+  initializeGenomicElementType("g1", m1, 1.0);
+  initializeGenomicElement(g1, 0, region_length-1);
+  initializeRecombinationRate(rbp);
+  m1.convertToSubstitution = T;
+  m1.mutationStackPolicy = "f";
+
+  // create and set the metadata, which we output too
+  // for easier downstream processing.
+  defineConstant("metadata", Dictionary());
+  defineConstant("burnin", 10*N);
+
+  metadata.setValue("rep", rep);
+  metadata.setValue("N", N);
+  metadata.setValue("sh", sh);
+  metadata.setValue("s", s);
+  metadata.setValue("h", h);
+  metadata.setValue("U", mu*region_length);
+  metadata.setValue("mu", mu);
+  metadata.setValue("rbp", rbp);
+  metadata.setValue("region_length", region_length);
+
+}
+
+1 early() {
+  sim.addSubpop("p1", N);
+  community.rescheduleScriptBlock(s1, start=2, end=burnin);
+  community.rescheduleScriptBlock(s2, start=burnin, end=burnin);
+
+  // Log Files
+  log = community.createLogFile(log_file, compress=T, sep="\t", logInterval=10);
+  log.addCycle();
+  log.addMeanSDColumns('k', 'sim.subpopulations.individuals.countOfMutationsOfType(m1);');
+}
+
+
+s1 early() {
+  if (sim.cycle % 1000 == 0) 
+    print(sim.cycle);
+}
+
+s2 late() {
+  sim.treeSeqOutput(treeseq_file, metadata=metadata);
+}

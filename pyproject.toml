@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "slimflow"
+version = "0.1.0"
+description = "A small library to help coordinate multiple SLiM simulations and run them with Snakemake."
+authors = ["Vince Buffalo <vsbuffalo@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "^1.26.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
+Sphinx = "^7.2.6"
+ruff = "^0.3.2"
+mkdocstrings = "^0.24.1"
+mkdocstrings-python = "^1.8.0"
+mkdocs-material = "^9.5.13"
+snakemake = "^8.6.0"
+polars = "^0.20.15"
+tskit = "^0.5.6"
+mkdocs = "^1.5.3"
+black = "^24.2.0"
+matplotlib = "^3.8.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+extend-select = ["E501"]

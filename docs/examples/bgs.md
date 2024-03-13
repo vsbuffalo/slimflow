@@ -1,0 +1,190 @@
+# Background Selection Example
+
+This is the documentation for the example in `examples/bgs` — see the full
+example code on
+[GitHub](https://github.com/vsbuffalo/slimflow/tree/main/examples/bgs).
+
+## The YAML Configuration File
+
+This is the configuration YAML file for the example:
+
+```yaml
+---
+name: bgs
+script: bgs.slim
+dir: runs
+nreps: 100
+seed: 42
+suffices:
+  treeseq_file: treeseq.tree
+  log_file: log.tsv.gz
+variables:
+  N:
+  - 1000
+  mu:
+  - 2.0e-08
+  - 1.0e-08
+  - 2.0e-09
+  - 1.0e-09
+  sh:
+  - 0.0001
+  - 0.001
+  - 0.01
+  - 0.1
+  rbp:
+  - 1.0e-08
+```
+
+## The Snakefile
+
+Below is the full Snakefile.
+
+```python
+from slimflow import GridRuns
+import numpy as np
+import polars as pl
+import tskit
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+if not len(config):
+    raise ValueError("config file not specified on command line, use --configfile config.json")
+
+run = GridRuns(config)
+
+# Generate all the targets for this YAML file.
+sims_df = run.generate_targets()
+
+# The SLiM rule: a simple, small amount of boilerplate code will run all
+# simulations.
+rule slim:
+  input: run.script, **run.input
+  output: **run.target_template()
+  shell: run.slim_cmd()
+
+# Now suppose we wanted to calculate some statistic(s) *per* output file (this
+# could combine them too). We just need to map the *target template* from one
+# suffix to another. Note that this can be done in parallel easily, which is
+# useful for more computational tasks like adding mutations to trees.
+rule post_process:
+  input: run.script, **run.target_template(suffices={'tree': 'treeseq.tree'})
+  output: **run.target_template(suffices={'summary': 'summary.tsv'})
+  run:
+    # load the tree file
+    tree = tskit.load(input['tree'])
+
+    # calculate windowed diversity
+    windows = np.arange(0, tree.sequence_length+1, 10000)
+    pi = tree.diversity(mode='branch', windows=windows)
+
+    # output results
+    midpoint = (windows[1:] + windows[:-1])/2
+    pi_df = pl.DataFrame(dict(midpoint=midpoint, pi=pi))
+    pi_df.write_csv(output['summary'], separator="\t")
+
+
+# Dataframe of summary file targets.
+summary_df = run.generate_targets(suffices={'summary': 'summary.tsv'})
+
+# The rule for summarizing all the results.
+rule process:
+  input: summary_df['filepath']
+  output: "summary.tsv"
+  run:
+    # If this rule runs, then all summary targets have been created.
+    assert len(input) == summary_df.shape[0]
+
+    # Load in all diversity summary dataframes.
+    dfs = [pl.read_csv(f, separator='\t').with_columns(pl.lit(f).alias("filepath"))
+                 for f in input]
+    df = pl.concat(dfs)
+
+    # Join in keys based on filepath - this brings in parameters.
+    df = df.join(summary_df.select(pl.exclude('suffix')), 
+                 left_on='filepath', right_on='filepath', how='inner')
+
+    # A toy summarization example: take mean diversity.
+    df = df.groupby('key').mean().select(pl.exclude(['rep', 'seed', 'filename']))
+
+    # Write output.
+    df.write_csv(output[0], separator='\t')
+
+
+# Create a figure from the summarized results.
+rule figure:
+  input: "summary.tsv"
+  output: "figure.pdf"
+  run:
+    d = pl.read_csv(input[0], separator='\t')
+    fig, ax = plt.subplots()
+    ax.scatter(d['mu'] / d['sh'], d['pi']/ (4*d['N']))
+    ax.semilogx()
+    ax.set_ylabel('B')
+    ax.set_xlabel('$\\mu/s$')
+    fig.savefig(output[0])
+
+rule all:
+  input: sims_df['filepath'], "figure.pdf"
+```
+
+## The SLiM Script
+
+The BGS simulation (in a region with fixed recombination) SLiM script is:
+
+```
+  defineConstant("region_length", 100000);
+  initializeTreeSeq();
+  defineConstant("seed", getSeed());
+  initializeMutationRate(mu);
+
+  // We fix h = 0.5 and calculate the proper homozygous selection
+  // coefficient.
+  defineConstant("h", 0.5);
+  defineConstant("s", sh / h);
+
+  initializeMutationType("m1", h, "f", -s);
+  initializeGenomicElementType("g1", m1, 1.0);
+  initializeGenomicElement(g1, 0, region_length-1);
+  initializeRecombinationRate(rbp);
+  m1.convertToSubstitution = T;
+  m1.mutationStackPolicy = "f";
+
+  // create and set the metadata, which we output too
+  // for easier downstream processing.
+  defineConstant("metadata", Dictionary());
+  defineConstant("burnin", 10*N);
+
+  metadata.setValue("rep", rep);
+  metadata.setValue("N", N);
+  metadata.setValue("sh", sh);
+  metadata.setValue("s", s);
+  metadata.setValue("h", h);
+  metadata.setValue("U", mu*region_length);
+  metadata.setValue("mu", mu);
+  metadata.setValue("rbp", rbp);
+  metadata.setValue("region_length", region_length);
+
+}
+
+1 early() {
+  sim.addSubpop("p1", N);
+  community.rescheduleScriptBlock(s1, start=2, end=burnin);
+  community.rescheduleScriptBlock(s2, start=burnin, end=burnin);
+
+  // Log Files
+  log = community.createLogFile(log_file, compress=T, sep="\t", logInterval=10);
+  log.addCycle();
+  log.addMeanSDColumns('k', 'sim.subpopulations.individuals.countOfMutationsOfType(m1);');
+}
+
+
+s1 early() {
+  if (sim.cycle % 1000 == 0) 
+    print(sim.cycle);
+}
+
+s2 late() {
+  sim.treeSeqOutput(treeseq_file, metadata=metadata);
+}
+```

@@ -1,0 +1,24 @@
+---
+name: bgs
+script: bgs.slim
+dir: runs
+nreps: 100
+seed: 42
+suffices:
+  treeseq_file: treeseq.tree
+  log_file: log.tsv.gz
+variables:
+  N:
+  - 1000
+  mu:
+  - 2.0e-08
+  - 1.0e-08
+  - 2.0e-09
+  - 1.0e-09
+  sh:
+  - 0.0001
+  - 0.001
+  - 0.01
+  - 0.1
+  rbp:
+  - 1.0e-08
