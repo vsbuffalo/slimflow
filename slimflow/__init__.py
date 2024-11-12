@@ -8,7 +8,7 @@ import polars as pl
 
 # this is to guarantee a random seed between 0 and sys.maxize
 # does not overflow.
-MAX_REPLICATES = 100_000
+MAX_REPLICATES = 1_000_000
 
 
 class GridRuns:
