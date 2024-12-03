@@ -1,12 +1,12 @@
 [project]
 name = "slimflow"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.1.3",
-    "polars>=1.12.0",
+    "polars>=1.16.0",
 ]
 
 [dependency-groups]
